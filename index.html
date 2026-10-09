@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Soil-Moisture Irrigation Simulator</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#e9dcc0;--fg:#33220f;--card:#f2e8d0;--bd:#b79e6c;--mut:#7a6642;--ac:#4a6b2c;--bl:#2f6f8f;--or:#b9702a;--rd:#c0281c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1810;--fg:#efe3c8;--card:#272015;--bd:#54462c;--mut:#b09c78;--ac:#95c36a;--bl:#79b8d8;--or:#e5a05a;--rd:#ff7a68}}
+:root[data-theme="dark"]{--bg:#1d1810;--fg:#efe3c8;--card:#272015;--bd:#54462c;--mut:#b09c78;--ac:#95c36a;--bl:#79b8d8;--or:#e5a05a;--rd:#ff7a68}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0 auto;background:var(--bg) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .2 0 0 0 0 .1 0 0 0 .1 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>");color:var(--fg);font:15px/1.5 Georgia,"Times New Roman",serif;padding:18px 16px 40px;max-width:920px}
+h1{font:700 27px/1.15 Rockwell,"Rockwell Nova",Georgia,serif;margin:0;letter-spacing:.2px}
+h2{font:700 12px ui-monospace,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:1.5px;margin:22px 0 6px;padding-bottom:3px;border-bottom:2px solid var(--fg)}
+p.s{margin:4px 0 0;color:var(--mut);max-width:62ch}
+.mono,small,th,.sm,button,.ctl legend{font-family:ui-monospace,Menlo,Consolas,monospace}
+.sm{font-size:12px;color:var(--mut)}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 22px;border:0;padding:0;margin:0}
+label{display:block;font-size:12.5px;color:var(--mut);padding:4px 0;border-bottom:1px dotted var(--bd)}label b{color:var(--fg);float:right;font-family:ui-monospace,Menlo,Consolas,monospace}
+input[type=range],select{width:100%;accent-color:var(--fg);margin-top:3px}
+select{padding:3px;border-radius:0;background:var(--card);color:var(--fg);border:1px solid var(--fg);font:13px Georgia,serif}
+button{background:transparent;color:var(--fg);border:1.5px solid var(--fg);border-radius:0;padding:6px 12px;font-size:12px;text-transform:uppercase;letter-spacing:.8px;cursor:pointer;margin:6px 8px 0 0}
+button.on{background:var(--fg);color:var(--bg)}button#play{background:var(--fg);color:var(--bg)}button:hover{background:var(--fg);color:var(--bg)}
+.links button{border:0;border-bottom:1px solid var(--fg);padding:0;margin:0 12px 0 0;text-transform:none;letter-spacing:0;font-size:13px}
+#scene{border:2px solid var(--fg);margin-top:8px;background:var(--card)}
+.read{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:12px;border-top:2px solid var(--fg);border-bottom:1px solid var(--fg)}
+.read div{padding:8px 12px;border-left:1px solid var(--bd)}.read div:first-child{border-left:0;padding-left:0}
+.read small{display:block;text-transform:uppercase;letter-spacing:1px;font-size:10px;color:var(--mut)}
+.read b{display:block;font:700 30px/1.15 Rockwell,Georgia,serif}.read i{font-size:12px;color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);text-align:left;font-weight:400;padding:4px 6px;border-bottom:1px solid var(--fg)}
+td{padding:5px 6px;border-bottom:1px dotted var(--bd)}tr.t td{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--mut)}
+svg{width:100%;height:auto;display:block}.zone{cursor:pointer}.num{font:700 22px Rockwell,Georgia,serif;color:var(--ac)}
+.note{font:15px/1.3 "Segoe Print","Bradley Hand","Segoe Script",cursive;color:var(--mut);margin:6px 0 0;transform:rotate(-.8deg);max-width:60ch}
+.key{display:inline-block;width:14px;height:3px;vertical-align:middle;margin:0 4px 0 10px}
+.flow{stroke-dasharray:7 6;animation:fl .5s linear infinite}@keyframes fl{to{stroke-dashoffset:-13}}
+.rain{animation:rn .45s linear infinite}@keyframes rn{from{transform:translateY(-8px)}to{transform:translateY(12px)}}
+.sw{animation:sw 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:bottom}@keyframes sw{50%{transform:rotate(2.5deg)}}
+@media(prefers-reduced-motion:reduce){.flow,.rain,.sw{animation:none}}
+</style></head><body>
+<h1>Soil-moisture irrigation simulator</h1>
+<p class="s">We built this to test our irrigation idea before building anything real. It runs our sensor-and-solar system next to an ordinary fixed-schedule timer, with exactly the same weather, so you can see how much water each one uses and whether the crops still do OK. The numbers come from our own simple model, so use them as a guide, not as proof. Tap a patch of soil in the field to water it by hand.</p>
+
+<h2>Settings</h2>
+<div class="links sm">Presets: <button data-p="mild">mild year</button><button data-p="severe">severe drought</button><button data-p="weak">weak solar</button><button data-p="cheap">cheapest build</button></div>
+<fieldset class="ctl" style="margin-top:8px">
+<label>Drought severity <b id="vD"></b><input id="drought" type="range" min="0" max="100" value="70"></label>
+<label>Pump starts below <b id="vT"></b><input id="thr" type="range" min="15" max="45" value="35"></label>
+<label>Pump stops at <b id="vSt"></b><input id="stop" type="range" min="40" max="80" value="60"></label>
+<label>Solar panel (W) <b id="vP"></b><input id="panel" type="range" min="10" max="100" step="5" value="40"></label>
+<label>Battery (Wh) <b id="vB"></b><input id="bat" type="range" min="20" max="300" step="10" value="100"></label>
+<label>Smart system seed<select id="seed"><option value="tol">Drought-tolerant</option><option value="std">Same as timer (standard)</option></select></label>
+<label>Compare against<select id="base"><option value="flood">Flood timer, every 3 days</option><option value="drip">Drip timer, daily</option></select></label>
+<label>Daily water cap (L) <b id="vW"></b><input id="wcap" type="range" min="50" max="400" step="10" value="250"></label>
+<label>Speed (hours per tick) <b id="vS"></b><input id="spd" type="range" min="1" max="24" value="6"></label>
+</fieldset>
+<p class="note">try this: drag the battery down to 40 Wh, press Play, and watch the "blocked" count.</p>
+<div><button id="play">Play</button><button id="reset">Reset</button><button id="heat">Heatwave, 3 days</button><button id="storm">Rain storm</button><button id="fault">Sensor fault, Zone 1</button><span class="sm" id="clock"></span></div>
+
+<h2>Field</h2>
+<svg id="scene" viewBox="0 0 600 270" role="img" aria-label="Field with water tank, pump, solar panel and four crop zones"></svg>
+<div class="read" id="read"></div>
+
+<h2>Each patch of soil</h2>
+<table id="tab"></table>
+
+<h2>Across 30 different weather years</h2>
+<table id="batch"></table>
+<p class="note">same settings, 30 different random weather sequences, no events. This is a range, not one lucky run. The second row shows what is left when the seed is the same in both systems.</p>
+<h2>How wet the soil stays, 60 days</h2>
+<div class="sm"><span class="key" style="background:var(--ac)"></span>smart<span class="key" style="background:var(--rd)"></span><span style="color:var(--rd)">conventional</span><span class="key" style="background:var(--bl)"></span>pump trigger</div>
+<svg id="c1" viewBox="0 -4 600 170"></svg>
+<p class="note">green is our system, red is the timer. The pump kicks in whenever green drops to the dashed line.</p>
+<h2>Battery and sun</h2>
+<div class="sm"><span class="key" style="background:var(--bl)"></span>battery charge<span class="key" style="background:var(--or);opacity:.5"></span>sunshine</div>
+<svg id="c2" viewBox="0 -4 600 110"></svg>
+
+<h2>What the prototype would cost</h2>
+<div id="cost"></div>
+<p class="sm">Assumptions you can change: pump 25 W moving 100 L/h, four zones of 10 m2. Both systems use the same seed unless you pick drought-tolerant, and both lose water in the pipes (drip 90% efficient, flood 70%). The savings are what our model predicts. We will measure the real number when the prototype is built.</p>
+<p class="note">made by Jay, Bhavesh and Miles</p>
+<script>
+const $=id=>document.getElementById(id);
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const DAYS=60,NZ=4,LPP=5;
+const SEEDS={tol:{wilt:15,opt:40,et:.6,need:30,gr:.9},std:{wilt:25,opt:50,et:1,need:48,gr:1}};
+const PRE={mild:{drought:30,thr:35,stop:60,panel:40,bat:100,seed:'tol'},severe:{drought:100,thr:35,stop:60,panel:40,bat:100,seed:'tol'},weak:{drought:70,thr:35,stop:60,panel:20,bat:40,seed:'tol'},cheap:{drought:70,thr:25,stop:50,panel:20,bat:60,seed:'tol'}};
+let S,timer=null,cfg;
+function readCfg(){cfg={dr:+$('drought').value,thr:+$('thr').value,stop:+$('stop').value,panel:+$('panel').value,cap:+$('bat').value,seed:$('seed').value,base:$('base').value,spd:+$('spd').value,wcap:+$('wcap').value};
+$('vD').textContent=cfg.dr+'%';$('vT').textContent=cfg.thr;$('vSt').textContent=cfg.stop;$('vP').textContent=cfg.panel;$('vB').textContent=cfg.cap;$('vS').textContent=cfg.spd;$('vW').textContent=cfg.wcap;
+const c=cfg.panel*.7+cfg.cap*.2+67;$('cost').innerHTML=`<b class="num">about $${Math.round(c)}</b> <span class="sm">panel $${Math.round(cfg.panel*.7)} + battery $${Math.round(cfg.cap*.2)} + Arduino, 4 capacitive sensors, relays, pump and drip line (about $67)</span>`}
+const mkZ=sd=>Array.from({length:NZ},()=>({m:45,bio:0,germ:0,id:0,sp:false,sd}));
+function build(n){const r=rng(n),W=[];
+for(let d=0;d<DAYS;d++)W.push({tmax:30+cfg.dr*.12+r()*4,cloud:r()<.15?.6:r()*.2,rain:r()<.01+.1*(1-cfg.dr/100)?10+r()*15:0});
+return{t:0,W,sm:{z:mkZ(SEEDS[cfg.seed]),bat:cfg.cap*.6,water:0,pump:-1,low:0,wh:0,dayL:0,capped:0},bs:{z:mkZ(SEEDS.std),water:0},h:{m1:[],m2:[],bat:[],sun:[]},se:0,sun:0,heat:0,storm:0,stormT:0,rainNow:false,fault:false}}
+function init(){readCfg();S=build(7);draw();batch()}
+function batch(){const keep=S,R=[];for(let k=1;k<=30;k++){S=build(100+k);for(let i=0;i<DAYS*24;i++)step();const a=[(1-S.sm.water/S.bs.water)*100,yp(S.sm),yp(S.bs)];const sv=cfg.seed;cfg.seed='std';S=build(100+k);for(let i=0;i<DAYS*24;i++)step();cfg.seed=sv;a.push((1-S.sm.water/S.bs.water)*100);R.push(a)}S=keep;
+const q=i=>{const v=R.map(x=>x[i]).sort((a,b)=>a-b);return[v[0],v[14],v[29]].map(x=>x.toFixed(0)+'%')};
+const row=(n,i,c)=>{const v=q(i);return`<tr><td${c?' style="color:var(--rd)"':''}>${n}</td><td>${v[0]}</td><td><b>${v[1]}</b></td><td>${v[2]}</td></tr>`};
+$('batch').innerHTML=`<tr><th></th><th>worst year</th><th>typical year</th><th>best year</th></tr>`+row('Water saved vs timer, your settings',0)+row('Water saved, same seed in both',3)+row('Smart system growth',1)+row('Timer growth',2,1)}
+function grow(z,m,sun){const s=z.sd;if(!z.sp){if(m>s.wilt+5)z.germ++;if(z.germ>=s.need)z.sp=true;return}
+if(sun>0){z.id+=sun*.1;z.bio+=Math.max(0,Math.min(1,(m-s.wilt)/(s.opt-s.wilt)))*sun*.1*s.gr}if(m<s.wilt)z.bio=Math.max(0,z.bio-.03)}
+function step(){
+ const t=S.t,d=Math.floor(t/24),h=t%24,W=S.W[d];
+ const sun=(h>=6&&h<=18)?Math.sin(Math.PI*(h-6)/12):0,se=sun*(1-W.cloud);
+ const tm=W.tmax+(S.heat>0?8:0),temp=tm-9+9*sun,tf=Math.pow(Math.max(.5,temp/32),2);
+ S.se=se;S.sun=sun;
+ let rainAdd=(h===14&&W.rain>0)?W.rain:0;if(S.storm>0){rainAdd+=S.storm;S.storm=0;S.stormT=3}
+ S.rainNow=S.stormT>0||(h>=13&&h<=15&&W.rain>0);if(S.stormT>0)S.stormT--;
+ const A=S.sm;if(h===0)A.dayL=0;
+ A.bat=Math.max(0,Math.min(cfg.cap,A.bat+cfg.panel*se*.8-1.5));
+ A.z.forEach(z=>{const l=(.05+.5*sun)*tf*z.sd.et;z.m=Math.max(0,z.m-l-Math.max(0,z.m-35)*.02);z.m=Math.min(100,z.m+rainAdd)});
+ if(A.pump<0){let lo=-1,lm=cfg.thr;A.z.forEach((z,i)=>{if(i===0&&S.fault)return;const s=z.m+(Math.random()-.5)*2;if(s<lm){lm=s;lo=i}});
+  if(lo>=0){if(A.dayL>=cfg.wcap)A.capped++;else if(A.bat>cfg.cap*.15&&A.bat>10)A.pump=lo;else A.low++}}
+ if(A.pump>=0){const z=A.z[A.pump],add=Math.min(20,cfg.stop-z.m),e=25*add/20;
+  if(A.bat>=e){A.bat-=e;A.wh+=e;z.m+=add;A.water+=add*LPP/.9;A.dayL+=add*LPP/.9;if(z.m>=cfg.stop-.5)A.pump=-1}else{A.low++;A.pump=-1}}
+ if(S.fault&&h===6&&d%3===0){const z=A.z[0];if(A.bat>=5+cfg.cap*.1){A.bat-=5;A.wh+=5;z.m=Math.min(100,z.m+20);A.water+=20*LPP/.9}}
+ A.z.forEach(z=>grow(z,z.m,sun));
+ const B=S.bs,flood=cfg.base==='flood';
+ B.z.forEach(z=>{const l=(.05+.5*sun)*tf*z.sd.et;z.m=Math.max(0,z.m-l-Math.max(0,z.m-35)*.02);z.m=Math.min(100,z.m+rainAdd);
+  if(h===6&&(!flood||d%3===0)){const a=flood?25:12;z.m=Math.min(100,z.m+a);B.water+=a*LPP/(flood?.7:.9)}grow(z,z.m,sun)});
+ if(h===23&&S.heat>0)S.heat--;
+ S.t++;const av=a=>a.z.reduce((s,z)=>s+z.m,0)/NZ;
+ S.h.m1.push(av(A));S.h.m2.push(av(B));S.h.bat.push(A.bat/cfg.cap*100);S.h.sun.push(se);
+}
+
+const mix=(a,b,k)=>a.map((v,i)=>Math.round(v+(b[i]-v)*k));
+const soil=m=>`rgb(${mix([205,172,120],[86,60,40],Math.min(1,m/65))})`;
+const yp=s=>{const i=s.z.reduce((a,z)=>a+z.id,0);return i>0?s.z.reduce((a,z)=>a+z.bio,0)/i*100:0};
+function manual(i){const z=S.sm.z[i];z.m=Math.min(100,z.m+20);S.sm.water+=20*LPP;draw()}
+const state=z=>!z.sp?'seed':z.m<z.sd.wilt?'wilting':'growing';
+function scene(){
+ const A=S.sm,d=Math.min(Math.floor(S.t/24),DAYS-1),h=S.t%24,W=S.W[d],day=h>=6&&h<=18;
+ const sky=`rgb(${mix([36,46,70],[214,228,228],Math.min(1,S.sun*1.8))})`;
+ const sx=70+((h-6)/12)*380,sy=112-Math.sin(Math.PI*(h-6)/12)*84;
+ let o=`<rect width="600" height="165" fill="${sky}"/>`;
+ o+=day?`<circle cx="${sx}" cy="${sy}" r="15" fill="#e9b949"/>`:`<circle cx="470" cy="38" r="11" fill="#e8e2c8"/>`;
+ if(W.cloud>.3||S.rainNow)o+=`<g fill="${S.rainNow?'#8a949b':'#f1f1ea'}"><ellipse cx="250" cy="42" rx="46" ry="12"/><ellipse cx="280" cy="35" rx="30" ry="11"/><ellipse cx="410" cy="56" rx="40" ry="11"/></g>`;
+ if(S.rainNow)for(let i=0;i<20;i++)o+=`<line class="rain" x1="${210+i*15}" y1="${62+(i%4)*11}" x2="${208+i*15}" y2="${72+(i%4)*11}" stroke="#5f8ea8" stroke-width="1.6" style="animation-delay:${(i%5)*.09}s"/>`;
+ o+=`<path d="M0 135 L90 112 L170 132 L280 100 L380 130 L470 108 L600 135 V166 H0Z" fill="#a89870" opacity=".75"/><path d="M0 150 L120 136 L240 148 L380 134 L520 148 L600 140 V166 H0Z" fill="#8c7c52"/>`;
+ o+=`<line x1="562" y1="110" x2="562" y2="165" stroke="#3b2f22" stroke-width="3"/><g transform="rotate(-16 562 104)"><rect x="530" y="92" width="64" height="20" fill="#27395c" stroke="#3b2f22" stroke-width="1.5"/><path d="M546 92V112M562 92V112M578 92V112" stroke="#8aa0c4" stroke-width=".8"/>${S.se>.2?`<rect x="530" y="92" width="64" height="20" fill="#f2d27a" opacity="${S.se*.45}"/>`:''}</g>`;
+ o+=`<rect x="16" y="96" width="34" height="62" fill="#566257" stroke="#3b2f22" stroke-width="1.5"/><path d="M16 112H50M16 128H50M16 144H50" stroke="#3b2f22" stroke-width=".8" opacity=".5"/><rect x="52" y="140" width="28" height="18" fill="${A.pump>=0?'#3f7f9c':'#9a9484'}" stroke="#3b2f22" stroke-width="1.5"/>`;
+ o+=`<g font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9" fill="#3b2f22"><text x="33" y="90" text-anchor="middle">TANK</text><text x="66" y="136" text-anchor="middle">PUMP ${A.pump>=0?'ON':'OFF'}</text><text x="562" y="86" text-anchor="middle">PANEL ${(cfg.panel*S.se*.8).toFixed(0)} W</text><text x="8" y="14" fill="${day?'#3b2f22':'#e8e2c8'}">DAY ${d}  ${String(h).padStart(2,'0')}:00  ${W.tmax.toFixed(0)}C${S.heat>0?' HEATWAVE':''}  BATT ${(A.bat/cfg.cap*100).toFixed(0)}%</text></g>`;
+ o+=`<rect y="165" width="600" height="105" fill="#6a4c30"/><path d="M80 171H585" stroke="#2c241b" stroke-width="4"/>`;
+ A.z.forEach((z,i)=>{const x=96+i*118,cx=x+50,on=A.pump===i,wilt=z.sp&&z.m<z.sd.wilt;
+  o+=`<g class="zone" data-i="${i}"><rect x="${x}" y="178" width="100" height="80" fill="${soil(z.m)}" stroke="${on?'#4f93b3':'#2c241b'}" stroke-width="${on?3:1}"/>`;
+  if(on)o+=`<path d="M80 171H${cx}V196" stroke="#6aaed0" stroke-width="3" fill="none" class="flow"/>`;
+  else o+=`<path d="M${cx} 171V180" stroke="#2c241b" stroke-width="2"/>`;
+  if(!z.sp)[[-18,10],[0,6],[16,12]].forEach(p=>o+=`<ellipse cx="${cx+p[0]}" cy="${186+p[1]}" rx="3" ry="1.8" fill="#e0cc98"/>`);
+  else{const hh=10+Math.min(1,z.bio/40)*42,c=wilt?'#a39246':'#4c8a3c';[-27,0,27].forEach((dx,j)=>{const px=cx+dx,t=hh*(j==1?1:.8),l=wilt?13:0;
+   o+=`<g class="${wilt?'':'sw'}"><path d="M${px} 178 Q${px+l*.4} ${178-t*.5} ${px+l} ${178-t}" stroke="${c}" stroke-width="2.4" fill="none"/><path d="M${px+l} ${178-t} q-9 -3 -8 -11 q8 1 8 11z M${px+l*.5} ${178-t*.55} q9 -2 9 -10 q-8 0 -9 10z" fill="${c}"/></g>`})}
+  o+=`<text x="${cx}" y="248" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="13" font-weight="700" fill="#fff" text-anchor="middle" style="paint-order:stroke;stroke:#000a;stroke-width:3px">${z.m.toFixed(0)}%</text><text x="${x+4}" y="190" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="9" fill="#fff" opacity=".8">Z${i+1}</text></g>`});
+ $('scene').innerHTML=o}
+const line=(a,w,h,c,mx,ex='')=>a.length<2?'':`<polyline fill="none" stroke="${c}" stroke-width="1.5" ${ex} points="${a.map((v,i)=>(i/(DAYS*24)*w).toFixed(1)+','+(h-Math.min(v,mx)/mx*h).toFixed(1)).join(' ')}"/>`;
+const axis=(h)=>[0,15,30,45,60].map(d=>`<text x="${Math.min(586,d/60*600)}" y="${h+13}" font-size="9" fill="var(--mut)" font-family="ui-monospace,Menlo,Consolas,monospace">d${d}</text>`).join('');
+function draw(){
+ const A=S.sm,B=S.bs;scene();
+ const ys=yp(A),yb=yp(B),sv=B.water>0?(1-A.water/B.water)*100:0,d=Math.min(Math.floor(S.t/24),DAYS-1);
+ const bl=cfg.base==='flood'?'a flood timer, every 3 days':'a daily drip timer';
+ $('read').innerHTML=`<div><small>Water saved</small><b style="color:var(--ac)">${sv.toFixed(0)}%</b><i>vs ${bl}</i></div><div><small>Smart system</small><b>${A.water.toFixed(0)} L</b><i>${A.wh.toFixed(0)} Wh pumped</i></div><div><small style="color:var(--rd)">Conventional</small><b style="color:var(--rd)">${B.water.toFixed(0)} L</b><i>same weather</i></div><div><small>Growth vs ideal</small><b>${ys.toFixed(0)}%</b><i>conventional ${yb.toFixed(0)}%</i></div>`;
+ $('tab').innerHTML=`<tr><th></th><th>Smart: moisture</th><th>state</th><th style="color:var(--rd)">Conventional: moisture</th><th style="color:var(--rd)">state</th></tr>`+A.z.map((z,i)=>`<tr><td>Zone ${i+1}</td><td>${z.m.toFixed(0)}%${A.pump===i?' (pumping)':''}</td><td>${state(z)}</td><td style="color:var(--rd)">${B.z[i].m.toFixed(0)}%</td><td style="color:var(--rd)">${state(B.z[i])}</td></tr>`).join('')+`<tr class="t"><td>Hours blocked</td><td colspan="4">low battery: ${A.low} &nbsp; water cap: ${A.capped}${S.fault?' &nbsp; Zone 1 sensor fault, timer fallback on':''}</td></tr>`;
+ $('clock').textContent=`day ${d} of ${DAYS}`;
+ const y=v=>150-v/60*150,px=S.t/(DAYS*24)*600;
+ $('c1').innerHTML=`<line x1="0" x2="600" y1="${y(cfg.thr)}" y2="${y(cfg.thr)}" stroke="var(--bl)" stroke-dasharray="4 4"/><text x="4" y="${y(cfg.thr)-3}" font-size="9" fill="var(--bl)" font-family="ui-monospace,Menlo,Consolas,monospace">pump starts ${cfg.thr}%</text>`+line(S.h.m2,600,150,'var(--rd)',60)+line(S.h.m1,600,150,'var(--ac)',60)+`<line x1="${px}" x2="${px}" y1="0" y2="150" stroke="var(--mut)" opacity=".4"/><path d="M0 150H600" stroke="var(--fg)"/>`+axis(150);
+ $('c2').innerHTML=line(S.h.sun.map(v=>v*100),600,90,'var(--or)',100,'opacity=".4"')+line(S.h.bat,600,90,'var(--bl)',100)+`<path d="M0 90H600" stroke="var(--fg)"/>`+axis(90);
+ $('fault').classList.toggle('on',S.fault);
+ if(S.t>=DAYS*24){clearInterval(timer);timer=null;$('play').textContent='Replay'}}
+function stop(){clearInterval(timer);timer=null;$('play').textContent='Play'}
+function tick(){for(let i=0;i<cfg.spd&&S.t<DAYS*24;i++)step();draw()}
+$('play').onclick=()=>{if(S.t>=DAYS*24)init();if(timer)stop();else{timer=setInterval(tick,70);$('play').textContent='Pause'}};
+$('reset').onclick=()=>{stop();init()};
+$('fault').onclick=()=>{S.fault=!S.fault;draw()};$('heat').onclick=()=>{S.heat=3;draw()};$('storm').onclick=()=>{S.storm=18;draw()};
+['drought','thr','stop','panel','bat','seed','base','wcap'].forEach(i=>{$(i).oninput=readCfg;$(i).onchange=()=>{stop();init()}});
+$('spd').oninput=readCfg;
+$('scene').addEventListener('pointerdown',e=>{const z=e.target.closest('.zone');if(z)manual(+z.dataset.i)});
+document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const p=PRE[b.dataset.p];for(const k in p)$(k).value=p[k];stop();init()});
+init();
+</script></body></html>
